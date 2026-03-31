@@ -1,0 +1,96 @@
+name: Demo Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_name:
+        description: "Enter file name"
+        required: true
+        default: "sample.txt"
+
+jobs:
+  job1:
+    runs-on: [self-hosted, Windows, runner1]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build jar
+        shell: powershell
+        run: .\mvnw.cmd clean package
+
+      - name: Build docker image
+        shell: powershell
+        run: docker build -t testapp-image .
+
+      - name: Run docker container
+        shell: powershell
+        run: docker run -d -p 8080:8080 --name testapp-container testapp-image
+
+  job2:
+    runs-on: [self-hosted, Windows, runner2]
+
+    outputs:
+      filepath: ${{ steps.create.outputs.filepath }}
+
+    steps:
+      - name: Create folders
+        shell: powershell
+        run: |
+          mkdir C:\demo\folder1 -Force
+          mkdir C:\demo\folder2 -Force
+          mkdir C:\demo\folder3 -Force
+
+      - name: Create file in folder1
+        id: create
+        shell: powershell
+        run: |
+          $name = "${{ github.event.inputs.file_name }}"
+          $path = "C:\demo\folder1\$name"
+          "KEY1=VALUE1" > $path
+          "KEY2=VALUE2" >> $path
+          "filepath=$path" >> $env:GITHUB_OUTPUT
+
+      - name: Copy file to folder2
+        shell: powershell
+        run: |
+          $name = "${{ github.event.inputs.file_name }}"
+          copy C:\demo\folder1\$name C:\demo\folder2\
+
+      - name: Replace text in folder2
+        shell: powershell
+        run: |
+          $name = "${{ github.event.inputs.file_name }}"
+          $file = "C:\demo\folder2\$name"
+          (Get-Content $file) -replace "KEY1","KEY3" -replace "VALUE2","VALUE3" | Set-Content $file
+
+  job3:
+    runs-on: [self-hosted, Windows, runner2]
+    needs: job2
+
+    steps:
+      - name: Copy file to folder3
+        shell: powershell
+        run: |
+          copy "${{ needs.job2.outputs.filepath }}" C:\demo\folder3\
+
+      - name: Replace text in folder3
+        shell: powershell
+        run: |
+          $name = "${{ github.event.inputs.file_name }}"
+          $file = "C:\demo\folder3\$name"
+          (Get-Content $file) -replace "VALUE1","VALUE4" | Set-Content $file
+
+      - name: Wait 1 minute
+        shell: powershell
+        run: Start-Sleep -Seconds 60
+
+  job4:
+    runs-on: [self-hosted, Windows, runner1]
+    needs: [job1, job3]
+
+    steps:
+      - name: Show docker images
+        shell: powershell
+        run: docker images
