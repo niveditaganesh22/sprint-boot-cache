@@ -10,7 +10,7 @@ on:
 
 jobs:
   job1:
-    runs-on: [self-hosted, Windows, runner1]
+    runs-on: [self-hosted, Windows, runner-1]
 
     steps:
       - name: Checkout code
@@ -29,7 +29,7 @@ jobs:
         run: docker run -d -p 8080:8080 --name testapp-container testapp-image
 
   job2:
-    runs-on: [self-hosted, Windows, runner2]
+    runs-on: [self-hosted, Windows, runner-2]
 
     outputs:
       filepath: ${{ steps.create.outputs.filepath }}
@@ -66,7 +66,7 @@ jobs:
           (Get-Content $file) -replace "KEY1","KEY3" -replace "VALUE2","VALUE3" | Set-Content $file
 
   job3:
-    runs-on: [self-hosted, Windows, runner2]
+    runs-on: [self-hosted, Windows, runner-2]
     needs: job2
 
     steps:
@@ -87,7 +87,7 @@ jobs:
         run: Start-Sleep -Seconds 60
 
   job4:
-    runs-on: [self-hosted, Windows, runner1]
+    runs-on: [self-hosted, Windows, runner-1]
     needs: [job1, job3]
 
     steps:
